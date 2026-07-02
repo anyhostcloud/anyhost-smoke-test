@@ -360,10 +360,17 @@ func (s *s3ObjectStore) get(ctx context.Context, key string) ([]byte, string, er
 func (s *s3ObjectStore) ping(ctx context.Context) error {
 	_, err := s.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(s.bucket),
-		Prefix:  aws.String(s.prefix),
+		Prefix:  aws.String(s.listPrefix()),
 		MaxKeys: aws.Int32(1),
 	})
 	return err
+}
+
+func (s *s3ObjectStore) listPrefix() string {
+	if s.prefix == "" {
+		return ""
+	}
+	return s.prefix + "/"
 }
 
 func (s *s3ObjectStore) key(key string) string {

@@ -106,6 +106,24 @@ func TestReadyChecksPostgresAndStorage(t *testing.T) {
 	}
 }
 
+func TestS3ObjectStoreListPrefixMatchesAnyHostPolicy(t *testing.T) {
+	store := &s3ObjectStore{prefix: "workspaces/wsp/projects/prj/envs/dev/storage/uploads"}
+	if got := store.listPrefix(); got != "workspaces/wsp/projects/prj/envs/dev/storage/uploads/" {
+		t.Fatalf("listPrefix() = %q", got)
+	}
+	if got := store.key("artifact.txt"); got != "workspaces/wsp/projects/prj/envs/dev/storage/uploads/artifact.txt" {
+		t.Fatalf("key() = %q", got)
+	}
+
+	store = &s3ObjectStore{}
+	if got := store.listPrefix(); got != "" {
+		t.Fatalf("empty listPrefix() = %q", got)
+	}
+	if got := store.key("/artifact.txt"); got != "artifact.txt" {
+		t.Fatalf("empty-prefix key() = %q", got)
+	}
+}
+
 type fakeArtifactStore struct {
 	records map[string]artifactRecord
 	pingErr error

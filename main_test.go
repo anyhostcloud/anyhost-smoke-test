@@ -10,6 +10,10 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func TestArtifactUploadStoresObjectAndMetadata(t *testing.T) {
@@ -142,6 +146,42 @@ func TestS3PutObjectInputUsesContentLengthAndScopedKey(t *testing.T) {
 	}
 	if input.ContentType == nil || *input.ContentType != "text/plain" {
 		t.Fatalf("ContentType = %#v", input.ContentType)
+	}
+}
+
+func TestS3ClientPutObjectReachesEndpointWithoutExpectContinue(t *testing.T) {
+	var gotPath string
+	var gotExpect string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotExpect = r.Header.Get("Expect")
+		w.Header().Set("ETag", `"test-etag"`)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cfg := aws.Config{
+		Region:      "us-west-2",
+		Credentials: credentials.NewStaticCredentialsProvider("AKID", "SECRET", ""),
+		HTTPClient:  server.Client(),
+	}
+	store := &s3ObjectStore{
+		client: newS3Client(cfg, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(server.URL)
+			o.UsePathStyle = true
+		}),
+		bucket: "bucket",
+	}
+	body := bytes.Repeat([]byte("a"), 3<<20)
+
+	if err := store.put(context.Background(), "artifact.txt", body, "text/plain"); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	if gotPath != "/bucket/artifact.txt" {
+		t.Fatalf("request path = %q, want /bucket/artifact.txt", gotPath)
+	}
+	if gotExpect != "" {
+		t.Fatalf("Expect header = %q, want empty", gotExpect)
 	}
 }
 

@@ -326,10 +326,20 @@ func objectStoreFromEnv(ctx context.Context) objectStore {
 	}
 	cfg.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 	return &s3ObjectStore{
-		client: s3.NewFromConfig(cfg),
+		client: newS3Client(cfg),
 		bucket: bucket,
 		prefix: strings.Trim(os.Getenv("S3_PREFIX"), "/"),
 	}
+}
+
+func newS3Client(cfg aws.Config, optFns ...func(*s3.Options)) *s3.Client {
+	options := []func(*s3.Options){
+		func(o *s3.Options) {
+			o.ContinueHeaderThresholdBytes = -1
+		},
+	}
+	options = append(options, optFns...)
+	return s3.NewFromConfig(cfg, options...)
 }
 
 func (s *s3ObjectStore) put(ctx context.Context, key string, body []byte, contentType string) error {

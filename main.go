@@ -164,11 +164,11 @@ func (a *app) handleCreateArtifact(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:   time.Now().UTC(),
 	}
 	if err := a.objects.put(r.Context(), record.S3Key, body, record.ContentType); err != nil {
-		writeError(w, http.StatusInternalServerError, "could not store artifact object")
+		writeDetailedError(w, http.StatusInternalServerError, "could not store artifact object", err)
 		return
 	}
 	if err := a.artifacts.create(r.Context(), record); err != nil {
-		writeError(w, http.StatusInternalServerError, "could not store artifact metadata")
+		writeDetailedError(w, http.StatusInternalServerError, "could not store artifact metadata", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, record)
@@ -421,6 +421,13 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func writeDetailedError(w http.ResponseWriter, status int, message string, err error) {
+	writeJSON(w, status, map[string]string{
+		"error":  message,
+		"detail": err.Error(),
+	})
 }
 
 func newID() (string, error) {

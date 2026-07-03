@@ -324,6 +324,7 @@ func objectStoreFromEnv(ctx context.Context) objectStore {
 	if err != nil {
 		return missingObjectStore("load aws config: " + err.Error())
 	}
+	cfg.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 	return &s3ObjectStore{
 		client: s3.NewFromConfig(cfg),
 		bucket: bucket,
@@ -332,13 +333,19 @@ func objectStoreFromEnv(ctx context.Context) objectStore {
 }
 
 func (s *s3ObjectStore) put(ctx context.Context, key string, body []byte, contentType string) error {
-	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(s.bucket),
-		Key:         aws.String(s.key(key)),
-		Body:        bytes.NewReader(body),
-		ContentType: aws.String(contentType),
-	})
+	_, err := s.client.PutObject(ctx, s.putObjectInput(key, body, contentType))
 	return err
+}
+
+func (s *s3ObjectStore) putObjectInput(key string, body []byte, contentType string) *s3.PutObjectInput {
+	size := int64(len(body))
+	return &s3.PutObjectInput{
+		Bucket:        aws.String(s.bucket),
+		Key:           aws.String(s.key(key)),
+		Body:          bytes.NewReader(body),
+		ContentType:   aws.String(contentType),
+		ContentLength: aws.Int64(size),
+	}
 }
 
 func (s *s3ObjectStore) get(ctx context.Context, key string) ([]byte, string, error) {

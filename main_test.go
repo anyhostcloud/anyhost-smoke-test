@@ -124,6 +124,27 @@ func TestS3ObjectStoreListPrefixMatchesAnyHostPolicy(t *testing.T) {
 	}
 }
 
+func TestS3PutObjectInputUsesContentLengthAndScopedKey(t *testing.T) {
+	store := &s3ObjectStore{
+		bucket: "bucket",
+		prefix: "workspaces/wsp/projects/prj/envs/dev/storage/uploads",
+	}
+	input := store.putObjectInput("/artifact.txt", []byte("hello"), "text/plain")
+
+	if input.Bucket == nil || *input.Bucket != "bucket" {
+		t.Fatalf("Bucket = %#v", input.Bucket)
+	}
+	if input.Key == nil || *input.Key != "workspaces/wsp/projects/prj/envs/dev/storage/uploads/artifact.txt" {
+		t.Fatalf("Key = %#v", input.Key)
+	}
+	if input.ContentLength == nil || *input.ContentLength != 5 {
+		t.Fatalf("ContentLength = %#v", input.ContentLength)
+	}
+	if input.ContentType == nil || *input.ContentType != "text/plain" {
+		t.Fatalf("ContentType = %#v", input.ContentType)
+	}
+}
+
 type fakeArtifactStore struct {
 	records map[string]artifactRecord
 	pingErr error

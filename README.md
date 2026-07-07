@@ -17,7 +17,7 @@ The container listens on port `8080`.
 Before deploying through AnyHost, the project environment should have ready managed resources:
 
 - Postgres resource for `DATABASE_URL`
-- Storage resource for `S3_BUCKET`, `S3_PREFIX`, `S3_REGION`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`
+- Storage resource for `S3_BUCKET`, `S3_PREFIX`, and `S3_REGION`. The deployed task uses its task role for S3 credentials. Legacy static key variables are also supported when provided.
 
 After provisioning resources, refresh context:
 
@@ -40,11 +40,18 @@ DATABASE_URL
 S3_BUCKET
 S3_PREFIX
 S3_REGION
+```
+
+If any are missing, `/health` still returns `ok`, but `/ready` reports `not_ready`.
+
+Optional legacy S3 credentials:
+
+```text
 S3_ACCESS_KEY_ID
 S3_SECRET_ACCESS_KEY
 ```
 
-If any are missing, `/health` still returns `ok`, but `/ready` reports `not_ready`.
+If one legacy key is set, both must be set.
 
 ## Verify A Deployment
 
@@ -79,7 +86,7 @@ DATABASE_URL=postgres://... \
 S3_BUCKET=... \
 S3_PREFIX=... \
 S3_REGION=... \
-S3_ACCESS_KEY_ID=... \
-S3_SECRET_ACCESS_KEY=... \
 go run .
 ```
+
+For local runs outside AWS, also set `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` or configure normal AWS SDK credentials.

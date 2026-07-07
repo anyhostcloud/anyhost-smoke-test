@@ -149,6 +149,35 @@ func TestS3PutObjectInputUsesContentLengthAndScopedKey(t *testing.T) {
 	}
 }
 
+func TestObjectStoreFromEnvSupportsTaskRoleCredentials(t *testing.T) {
+	t.Setenv("S3_BUCKET", "bucket")
+	t.Setenv("S3_REGION", "us-west-2")
+	t.Setenv("S3_PREFIX", "workspaces/wsp/projects/prj/envs/dev/storage/uploads")
+	t.Setenv("S3_ACCESS_KEY_ID", "")
+	t.Setenv("S3_SECRET_ACCESS_KEY", "")
+
+	store := objectStoreFromEnv(context.Background())
+	s3Store, ok := store.(*s3ObjectStore)
+	if !ok {
+		t.Fatalf("objectStoreFromEnv returned %T, want *s3ObjectStore", store)
+	}
+	if s3Store.bucket != "bucket" || s3Store.prefix != "workspaces/wsp/projects/prj/envs/dev/storage/uploads" {
+		t.Fatalf("unexpected store config: %#v", s3Store)
+	}
+}
+
+func TestObjectStoreFromEnvRejectsPartialStaticCredentials(t *testing.T) {
+	t.Setenv("S3_BUCKET", "bucket")
+	t.Setenv("S3_REGION", "us-west-2")
+	t.Setenv("S3_ACCESS_KEY_ID", "AKID")
+	t.Setenv("S3_SECRET_ACCESS_KEY", "")
+
+	store := objectStoreFromEnv(context.Background())
+	if err := store.ping(context.Background()); err == nil || err.Error() != "S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be provided together" {
+		t.Fatalf("ping error = %v", err)
+	}
+}
+
 func TestS3ClientPutObjectReachesEndpointWithoutExpectContinue(t *testing.T) {
 	var gotPath string
 	var gotExpect string

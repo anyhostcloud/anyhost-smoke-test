@@ -311,16 +311,19 @@ type s3ObjectStore struct {
 func objectStoreFromEnv(ctx context.Context) objectStore {
 	bucket := strings.TrimSpace(os.Getenv("S3_BUCKET"))
 	region := strings.TrimSpace(os.Getenv("S3_REGION"))
+	if bucket == "" || region == "" {
+		return missingObjectStore("S3_BUCKET and S3_REGION are required")
+	}
+	opts := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(region)}
 	accessKey := strings.TrimSpace(os.Getenv("S3_ACCESS_KEY_ID"))
 	secretKey := strings.TrimSpace(os.Getenv("S3_SECRET_ACCESS_KEY"))
-	if bucket == "" || region == "" || accessKey == "" || secretKey == "" {
-		return missingObjectStore("S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY are required")
+	if accessKey != "" || secretKey != "" {
+		if accessKey == "" || secretKey == "" {
+			return missingObjectStore("S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be provided together")
+		}
+		opts = append(opts, awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")))
 	}
-	cfg, err := awsconfig.LoadDefaultConfig(
-		ctx,
-		awsconfig.WithRegion(region),
-		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
-	)
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return missingObjectStore("load aws config: " + err.Error())
 	}
